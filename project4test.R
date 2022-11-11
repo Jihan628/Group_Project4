@@ -9,7 +9,6 @@ gb <-  function(th,k=2) {
 }
 
 
-machineprec<-2.220e-16
 
 
 hb <- function(th,k=2) {
@@ -21,41 +20,83 @@ hb <- function(th,k=2) {
 }
 
 
+# Example 2 (Lecture notes, still doesn't work)
 
 
+rll <- function(theta,t,y) {
+  ## -ve log likelihood for AIDS model y_i ~ Poi(alpha*exp(beta*t_i)) ## theta = (alpha,beta)
+  mu <- theta[1] * exp(theta[2] * t) ## mu = E(y)
+  -sum(dpois(y,mu,log=TRUE)) ## the negative log likelihood 
+} 
 
+gll <- function(theta,t,y) {
+  ## grad of -ve log lik of Poisson AIDS early epidemic model 
+  alpha <- theta[1]
+  beta <- theta[2] ## enhances readability 
+  ebt <- exp(beta*t) ## avoid computing twice 
+  -c(sum(y)/alpha - sum(ebt), ## -dl/dalpha
+  sum(y*t) - alpha*sum(t*ebt)) ## -dl/dbeta 
+} 
+
+hll <- function(theta,t,y) {
+  ## Hessian of -ve log lik of Poisson AIDS early epidemic model
+  alpha <- theta[1]
+  beta <- theta[2] ## enhances readability 
+  ebt <- exp(beta*t) ## avoid computing twice
+  H <- matrix(0,2,2) ## matrix for Hessian of -ve ll
+  H[1,1] <- sum(y)/alpha^2
+  H[2,2] <- alpha*sum(t^2*ebt)
+  H[1,2] <- H[2,1] <- sum(t*ebt)
+  H
+}
+
+
+#############################################################################
+### Code
 
 
 newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,maxit=100,max.half=20,eps=1e-6){
   
-  # take the derivative to get the gradient
-  ftheta<-grad(theta)
+  
+  ftheta<-grad(theta,...) # gradient
+  value<-func(theta,...) # value of the function
   thetanew<-theta 
   iter=0
+  dim<-length(theta) #dimension of theta
   
-  if(is.null(hess)){ 
-    while (ftheta[1]>0.001|ftheta[1]< (-0.001)|ftheta[2]>0.001|ftheta[2]<(-0.001)){
+  if(is.null(hess)){ #If without hess function
+    # Compute the f'x and f''x before entering the loop  
+    
+    
+    ftheta<- grad(thetanew,...) 
+    H<- matrix(0,dim,dim)
+    
+    for (i in 1:dim) { ## loop over parameters
+      th1 <- thetanew;
+      th1[i] <- th1[i] + eps ## increase th0[i] by eps 
+      grad1 <- grad(th1,...) ## compute resulting nll
+      H[i,] <- (grad1 - ftheta)/eps ## approximate second derivs
+    }
+    fftheta<-diag(H)
+    while (any(abs(ftheta)>=tol*abs(value)+fscale)){ # Criteria listed by the pratical 
       
-      ftheta<-gb(thetanew) 
-      prec<-sqrt(2.220e-16)
-      
-      #Need to build a hessian matrix
-      # Finite derivative
-      ffd1d1<-(gb(thetanew+c(prec,0))[1]-gb(thetanew)[1])/prec
-      ffd2d2<-(gb(thetanew+c(0,prec))[2]-gb(thetanew)[2])/prec
-      ffd1d2<-(gb(thetanew+c(0,prec))[1]-gb(thetanew)[1])/prec
-      ffd2d1<-(gb(thetanew+c(prec,0))[2]-gb(thetanew)[2])/prec
-      h <- matrix(0,2,2)
-      h[1,1]<-ffd1d1
-      h[2,2]<-ffd2d2
-      h[1,2]<-ffd1d2
-      h[2,1]<-ffd2d1
-      
-      fftheta<-c(ffd1d1,ffd2d2)
       
       #Using xi+1=xi-f'x/f''x
       thetanew<-thetanew-ftheta/fftheta
-      value<-func(thetanew)
+      value<-func(thetanew,...)
+      
+      #Need to build a hessian matrix
+      
+      ftheta<- grad(thetanew,...) 
+      H<- matrix(0,dim,dim)
+      
+      for (i in 1:dim) { ## loop over parameters
+        th1 <- thetanew;
+        th1[i] <- th1[i] + eps ## increase th0[i] by eps 
+        grad1 <- grad(th1,...) ## compute resulting nll
+        H[i,] <- (grad1 - ftheta)/eps ## approximate second derivs
+      }
+      fftheta<-diag(H)
       iter<-iter+1
       
       
@@ -63,33 +104,57 @@ newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,maxit=100,max.hal
     }
     
     
-    list(f=value,theta=thetanew,iter=iter,g=ftheta,Hi=chol2inv(chol(h)))
+    list(f=value,theta=thetanew,iter=iter,g=ftheta,Hi=chol2inv(chol(H)))
     
-  } else {
-  while (ftheta[1]>0.001|ftheta[1]< (-0.001)|ftheta[2]>0.001|ftheta[2]<(-0.001)){
-  
-  
-  ftheta<-grad(thetanew)
-  fftheta<-c(hess(thetanew)[1,1],hess(thetanew)[2,2])
-  
-  thetanew<-thetanew-ftheta/fftheta
-  value<-func(thetanew)
-  iter<-iter+1
-  }
+  } else { # With hess matrix
+    fftheta<-diag(hess(thetanew,...)) # Get the diagonal entries for hess
+    while (any(abs(ftheta)>=tol*abs(value)+fscale)){
+      
+      
+      thetanew<-thetanew-ftheta/fftheta
+      value<-func(thetanew,...)
+      ftheta<-grad(thetanew,...)
+      fftheta<-diag(hess(thetanew,...))
+      iter<-iter+1
+    }
+    
     list(f=value,theta=thetanew,iter=iter,g=ftheta,Hi=chol2inv(chol(hess(thetanew))))
   }
   
   
   
   
- 
-  
 }
 
 
-newt(c(1.05,1.05),rb,gb)
-newt(c(1.05,1.05),rb,gb,hb)
 
+
+# Test this, works well, results are very close!
+newt(c(1.2,1.2),rb,gb)
+newt(c(1.2,1.2),rb,gb,hb)
+
+
+
+
+### But it still shoots off for this one... Not sure why??
+t80 <- 1:13 ## years since 1980
+y <- c(12,14,33,50,67,74,123,141,165,204,253,246,240)
+newt(theta=c(10,0.1),func=rll,grad=gll,hess=hll,t=t80,y=y)
+
+
+
+
+#### What is done
+### Should work for any dimensions of theta
+### Returns all outputs required
+### Hessian matrix computation done
+
+
+### Still needs to be done
+### add maxit and max.half into the function
+### Check whether hessian is positive definite at convergence
+### check the objective and derivatives are finite at the initial theta
+### Other weird scenarios!!!
 
 
 
