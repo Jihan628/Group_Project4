@@ -1,6 +1,4 @@
-### Function for minimization test
-install.packages('corpcor')
-library(corpcor)
+
 rb <- function(th,k=2) {
   k*(th[2]-th[1]^2)^2 + (1-th[1])^2
 }
@@ -81,12 +79,12 @@ newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,maxit=100,max.hal
       grad1 <- grad(th1,...) ## compute resulting nll
       H[i,] <- (grad1 - ftheta)/eps ## approximate second derivs
     }
-    fftheta<-diag(H)
-    while (any(abs(ftheta)>=tol*(abs(value)+fscale))){ # Criteria listed by the pratical 
+    
+    while (any(abs(ftheta)>(tol*(abs(value)+fscale)))){ # Criteria listed by the pratical 
       
       
-      #Using xi+1=xi-f'x/f''x
-      thetanew<-thetanew-ftheta/fftheta
+      #Using xi+1=xi-hess inv * grad
+      thetanew<-thetanew-chol2inv(chol(H))%*%ftheta
       value<-func(thetanew,...)
       
       #Need to build a hessian matrix
@@ -100,12 +98,10 @@ newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,maxit=100,max.hal
         grad1 <- grad(th1,...) ## compute resulting nll
         H[i,] <- (grad1 - ftheta)/eps ## approximate second derivs
       }
-      fftheta<-diag(H)
+      
       iter<-iter+1
       
-      #if (iter=max.half & value>=intvalue){
-        #warning("")
-     #}
+      
       
       
       
@@ -117,21 +113,17 @@ newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,maxit=100,max.hal
     }
     
     
-    list(f=value,theta=thetanew,iter=iter,g=ftheta,Hi=chol2inv(chol(H)))
+    list(f=value,theta=as.vector(thetanew),iter=iter,g=ftheta,Hi=chol2inv(chol(H)))
     
   } else { # With hess matrix
-    fftheta<-diag(hess(thetanew,...)) # Get the diagonal entries for hess
-    while (any(abs(ftheta)>=tol*(abs(value)+fscale))){
+    
+    while (any(abs(ftheta)>(tol*(abs(value)+fscale)))){
       
       
-      thetanew<-thetanew-ftheta/fftheta
+      thetanew<-thetanew-chol2inv(chol(hess(thetanew,...)))%*%ftheta
       value<-func(thetanew,...)
       ftheta<-grad(thetanew,...)
-      fftheta<-diag(hess(thetanew,...))
       iter<-iter+1
-      #if (iter=max.half & value>=intvalue){
-        #warning("")
-      #}
       
       if (iter > maxit){
         stop("maximum iterations is reached without convergence")
@@ -139,7 +131,7 @@ newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,maxit=100,max.hal
     }
     
     
-    list(f=value,theta=thetanew,iter=iter,g=ftheta,Hi=chol2inv(chol(hess(thetanew))))
+    list(f=value,theta=as.vector(thetanew),iter=iter,g=ftheta,Hi=chol2inv(chol(hess(thetanew,...))))
   }
 
   
@@ -150,8 +142,8 @@ newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,maxit=100,max.hal
 }
 
 # Test this, works well, results are very close!
-newt(c(1.2,1.2),rb,gb)
-newt(c(1.2,1.2),rb,gb,hb)
+newt(c(0.5,0.5),rb,gb)
+newt(c(30,30),rb,gb,hb)
 
 newt(c(1.8,1.3),rb,gb,hb)#test
 newt(c(Inf,1),rb,gb)#test
