@@ -60,12 +60,13 @@ newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,maxit=100,max.hal
   
   
   ftheta<-grad(theta,...) # gradient
-  value<-func(theta,...) # value of the function
+  intvalue<-func(theta,...) # value of the function
+  value<-intvalue
   thetanew<-theta 
   iter=0
   dim<-length(theta) #dimension of theta
   
-  if(is.finite(value)){
+  if(all(is.finite(value) & is.finite(ftheta))){ #Both objective and derivative is finite
   
   if(is.null(hess)){ #If without hess function
     # Compute the f'x and f''x before entering the loop  
@@ -102,13 +103,19 @@ newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,maxit=100,max.hal
       fftheta<-diag(H)
       iter<-iter+1
       
+      if (iter=max.half & value>=intvalue){
+        warning("")
+      }
       
+      
+      
+      if (iter > maxit){
+        stop("maximum iterations is reached without convergence")
+      }
       
       
     }
-    if (iter > 100){
-      stop('100 times is reached without convergence')
-    }
+    
     
     list(f=value,theta=thetanew,iter=iter,g=ftheta,Hi=chol2inv(chol(H)))
     
@@ -122,10 +129,15 @@ newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,maxit=100,max.hal
       ftheta<-grad(thetanew,...)
       fftheta<-diag(hess(thetanew,...))
       iter<-iter+1
+      if (iter=max.half & value>=intvalue){
+        warning("")
+      }
+      
+      if (iter > maxit){
+        stop("maximum iterations is reached without convergence")
+      }
     }
-    if (iter > 100){
-      stop('100 times is reached without convergence')
-    }
+    
     
     list(f=value,theta=thetanew,iter=iter,g=ftheta,Hi=chol2inv(chol(hess(thetanew))))
   }
@@ -141,7 +153,7 @@ newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,maxit=100,max.hal
 newt(c(1.2,1.2),rb,gb)
 newt(c(1.2,1.2),rb,gb,hb)
 
-newt(c(1.8,1.3),rb,gb)#test
+newt(c(1.8,1.3),rb,gb,hb)#test
 newt(c(Inf,1),rb,gb)#test
 
 newt(c(-0.5,-0.3),rb,gb)#test
@@ -171,7 +183,7 @@ newt(theta=c(10,0.1),func=rll,grad=gll,hess=hll,t=t80,y=y)
 ### Other weird scenarios!!!
 
 #-------------------------------------------------------------------------
-
+## Jihan:
 ## Have add maxit but not sure how to add max.half correctly
 ## I try to use is.positive.definite but it need package 'corpcor'
 ## Have add it by is.finite 
