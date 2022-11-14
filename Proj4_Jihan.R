@@ -82,7 +82,7 @@ newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,maxit=100,max.hal
       H[i,] <- (grad1 - ftheta)/eps ## approximate second derivs
     }
     fftheta<-diag(H)
-    while (any(abs(ftheta)>=tol*abs(value)+fscale)){ # Criteria listed by the pratical 
+    while (any(abs(ftheta)>=tol*(abs(value)+fscale))){ # Criteria listed by the pratical 
       
       
       #Using xi+1=xi-f'x/f''x
@@ -103,9 +103,9 @@ newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,maxit=100,max.hal
       fftheta<-diag(H)
       iter<-iter+1
       
-      if (iter=max.half & value>=intvalue){
-        warning("")
-      }
+      #if (iter=max.half & value>=intvalue){
+        #warning("")
+     #}
       
       
       
@@ -121,7 +121,7 @@ newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,maxit=100,max.hal
     
   } else { # With hess matrix
     fftheta<-diag(hess(thetanew,...)) # Get the diagonal entries for hess
-    while (any(abs(ftheta)>=tol*abs(value)+fscale)){
+    while (any(abs(ftheta)>=tol*(abs(value)+fscale))){
       
       
       thetanew<-thetanew-ftheta/fftheta
@@ -129,9 +129,9 @@ newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,maxit=100,max.hal
       ftheta<-grad(thetanew,...)
       fftheta<-diag(hess(thetanew,...))
       iter<-iter+1
-      if (iter=max.half & value>=intvalue){
-        warning("")
-      }
+      #if (iter=max.half & value>=intvalue){
+        #warning("")
+      #}
       
       if (iter > maxit){
         stop("maximum iterations is reached without convergence")
