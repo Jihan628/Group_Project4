@@ -72,7 +72,7 @@ is.posdef<-function(A){
     result<-tryCatch(chol(A),error=function(e) e) 
     bool<-inherits(result,"matrix") ## Boolean
     temp<-10*temp ## If our perturbation didn't work we multiply the 
-                  ## magnitude by 10
+    ## magnitude by 10
     
   }
   
@@ -85,196 +85,182 @@ is.posdef<-function(A){
 ## Defining the newt function
 
 newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,
-maxit=100,max.half=20,eps=1e-6){
-
-
-## Inputs :: theta: our initial point, func: the objective function to 
-## be minimized, grad: the gradient of ff, hess: the Hessian of obj, which by
-## default is not given and will be computed inside the function by finite
-## differences, tol: is our tolerance for the magnitude of the components 
-## of the gradient(we need that to check for convergence), fscale: a rough 
-## estimate of the magnitude of f near the optimum(used in convergence testing)
-## maxit: the maximum number of iterations, max.half:  the maximum number of 
-## times a step should be halved before concluding that the step has failed to
-## improve obj, eps: the length of the finite difference intervals for the 
-## computation of the Hessian, any other necessary parameters are passed using
-## the '...' notation.
-
-##-----------------------------------------------------------------------------
-
-## Outputs :: a list containing: f: the value of the objective at the minimum
-## theta: the value of the parameters at the minimum, iter: the number of 
-## iterations taken to reach the minimum, g: the gradient vector at the minimum
-## (this is used to judge closeness to the 0 of the machine), Hi: the inverse 
-## of the Hessian matrix at the minimum. 
-
-##-----------------------------------------------------------------------------
-
-## Approach :: In the default case where the Hessian is not provided by the 
-## user, we compute it by using the method of finite differences, otherwise we
-## use the input, in any case the next step is to check for positive
-## definiteness using the Cholesky decomposition, if our Hessian is not 
-## positive definite we perturb it by adding l*I, where l is a small real value
-## and I is the identity matrix, in order to make it positive definite. As soon 
-## as we have confirmed positive definiteness we know that the method converges.
-
-##-----------------------------------------------------------------------------
+               maxit=100,max.half=20,eps=1e-6){
   
-## Initializations
+  
+  ## Inputs :: theta: our initial point, func: the objective function to 
+  ## be minimized, grad: the gradient of ff, hess: the Hessian of obj, which by
+  ## default is not given and will be computed inside the function by finite
+  ## differences, tol: is our tolerance for the magnitude of the components 
+  ## of the gradient(we need that to check for convergence), fscale: a rough 
+  ## estimate of the magnitude of f near the optimum(used in convergence testing)
+  ## maxit: the maximum number of iterations, max.half:  the maximum number of 
+  ## times a step should be halved before concluding that the step has failed to
+  ## improve obj, eps: the length of the finite difference intervals for the 
+  ## computation of the Hessian, any other necessary parameters are passed using
+  ## the '...' notation.
+  
+  ##-----------------------------------------------------------------------------
+  
+  ## Outputs :: a list containing: f: the value of the objective at the minimum
+  ## theta: the value of the parameters at the minimum, iter: the number of 
+  ## iterations taken to reach the minimum, g: the gradient vector at the minimum
+  ## (this is used to judge closeness to the 0 of the machine), Hi: the inverse 
+  ## of the Hessian matrix at the minimum. 
+  
+  ##-----------------------------------------------------------------------------
+  
+  ## Approach :: In the default case where the Hessian is not provided by the 
+  ## user, we compute it by using the method of finite differences, otherwise we
+  ## use the input, in any case the next step is to check for positive
+  ## definiteness using the Cholesky decomposition, if our Hessian is not 
+  ## positive definite we perturb it by adding l*I, where l is a small real value
+  ## and I is the identity matrix, in order to make it positive definite. As soon 
+  ## as we have confirmed positive definiteness we know that the method converges.
+  
+  ##-----------------------------------------------------------------------------
+  
+  ## Initializations
   
   ftheta<-grad(theta,...)   ## Initial value of the gradient
   intvalue<-func(theta,...) ## Initial value of the objective
-
+  
   value<-intvalue
   thetanew<-theta 
-   
+  
   iter=0             ## Number of iterations
   dim<-length(theta) ## Dimension of theta
-
-##-----------------------------------------------------------------------------
+  
+  ##-----------------------------------------------------------------------------
   
   if(all(is.finite(value) & is.finite(ftheta))){ ## Checking for finiteness of 
-                                                 ## objective and gradient
-  
-  if(is.null(hess)){ ## Default case 
-
-     
-    ## Computing the Hessian at the initial value
+    ## objective and gradient
     
-    
-    H<- matrix(0,dim,dim)
-    
-    for (i in 1:dim) { ## Looping over parameters
-      th1 <- theta;
-      th1[i] <- th1[i] + eps             ## Increase th0[i] by eps 
-      grad1 <- grad(th1,...)             
-      H[i,] <- (grad1 - ftheta)/eps      ## Second derivatives approximation
-    }
-    
-    ## Checking if the Hessian is positive definite at the initial value and
-    ## if is not we perturb it until it becomes positive definite.
-    
-    Η<-is.posdef(H)
-    
-    while (any(abs(ftheta)>(tol*(abs(value)+fscale)))){ ## Gradient components  
-                                                        ## sufficiently small
+    if(is.null(hess)){ ## Default case 
       
-      ## Updating with x_i+1 = x_i + inv_hess*grad
-
-      thetanew<-theta-chol2inv(chol(H))%*%ftheta ## Obtaining the next value
-      value<-func(thetanew,...)
       
-      ## Check if we are actually improving, otherwise half the step 
+      ## Computing the Hessian at the initial value
       
-      half_it <- 0 ## Counter for halvings
       
-      while(intvalue<value|is.finite(value)==FALSE){
-        
-        thetanew<-theta-(1/2)^(half_it+1)*chol2inv(chol(H))%*%ftheta ## Half the step
-        value<-func(thetanew,...)
-        half_it<-half_it+1
-        
-        if (half_it > max.half){
-          
-          stop("maximum halving iterations reached without convergence")
-        }
-        
-      } 
-      
-      ## We have obtained the next value
-      
-      ## We compute the Hessian for the next value
-      
-      ftheta<- grad(thetanew,...) 
       H<- matrix(0,dim,dim)
       
       for (i in 1:dim) { ## Looping over parameters
-        th1 <- thetanew;
-        th1[i] <- th1[i] + eps        ## Increase th0[i] by eps 
-        grad1 <- grad(th1,...) 
-        H[i,] <- (grad1 - ftheta)/eps ## Approximate second derivatives
+        th1 <- theta;
+        th1[i] <- th1[i] + eps             ## Increase th0[i] by eps 
+        grad1 <- grad(th1,...)             
+        H[i,] <- (grad1 - ftheta)/eps      ## Second derivatives approximation
       }
       
-      ## We are checking if the Hessian is positive definite, if not we perturb
+      ## Checking if the Hessian is positive definite at the initial value and
+      ## if is not we perturb it until it becomes positive definite.
+      
+      Η<-is.posdef(H)
+      
+      while (any(abs(ftheta)>(tol*(abs(value)+fscale)))){ ## Gradient components  
+        ## sufficiently small
+        
+        ## Updating with x_i+1 = x_i + inv_hess*grad
+        
+        thetanew<-theta-chol2inv(chol(H))%*%ftheta ## Obtaining the next value
+        value<-func(thetanew,...)
+        
+        ## Check if we are actually improving, otherwise half the step 
+        
+        half_it <- 0 ## Counter for halvings
+        
+        while(intvalue<value|is.finite(value)==FALSE){
+          
+          thetanew<-theta-(1/2)^(half_it+1)*chol2inv(chol(H))%*%ftheta ## Half the step
+          value<-func(thetanew,...)
+          half_it<-half_it+1
+          
+          if (half_it > max.half){
+            
+            stop("maximum halving iterations reached without convergence")
+          }
+          
+        } 
+        
+        ## We have obtained the next value
+        
+        ## We compute the Hessian for the next value
+        
+        ftheta<- grad(thetanew,...) 
+        H<- matrix(0,dim,dim)
+        
+        for (i in 1:dim) { ## Looping over parameters
+          th1 <- thetanew;
+          th1[i] <- th1[i] + eps        ## Increase th0[i] by eps 
+          grad1 <- grad(th1,...) 
+          H[i,] <- (grad1 - ftheta)/eps ## Approximate second derivatives
+        }
+        
+        ## We are checking if the Hessian is positive definite, if not we perturb
+        
+        H<-is.posdef(H)
+        
+        iter<-iter+1
+        intvalue<-value
+        theta<-thetanew
+        
+        if (iter > maxit){
+          stop("maximum iterations is reached without convergence")
+        }
+        
+        
+      }
+      
+      
+      list(f=value,theta=as.vector(thetanew),iter=iter,g=ftheta,Hi=chol2inv(chol(H)))
+      
+    } else { ## If Hessian is given, proceed as before without finite differences
+      
+      H<-hess(theta,...)
       
       H<-is.posdef(H)
       
-      iter<-iter+1
-      intvalue<-value
-      theta<-thetanew
-      
-      if (iter > maxit){
-        stop("maximum iterations is reached without convergence")
-      }
-      
-      
-    }
-    
-    
-    list(f=value,theta=as.vector(thetanew),iter=iter,g=ftheta,Hi=chol2inv(chol(H)))
-    
-  } else { ## If Hessian is given, proceed as before without finite differences
-    
-    H<-hess(theta,...)
-    
-    H<-is.posdef(H)
-    
-    while (any(abs(ftheta)>(tol*(abs(value)+fscale)))){
-      
-      thetanew<-theta-chol2inv(chol(H))%*%ftheta
-      value<-func(thetanew,...)
-      half_it <- 0
-      while(intvalue<value|is.finite(value)==FALSE){
+      while (any(abs(ftheta)>(tol*(abs(value)+fscale)))){
         
-        thetanew<-theta-(1/2)^(half_it+1)*chol2inv(chol(H))%*%ftheta ## Half the step
+        thetanew<-theta-chol2inv(chol(H))%*%ftheta
         value<-func(thetanew,...)
-        half_it<-half_it+1
-        
-        if (half_it > max.half){
+        half_it <- 0
+        while(intvalue<value|is.finite(value)==FALSE){
           
-          stop("maximum halving iterations reached without convergence")
+          thetanew<-theta-(1/2)^(half_it+1)*chol2inv(chol(H))%*%ftheta ## Half the step
+          value<-func(thetanew,...)
+          half_it<-half_it+1
+          
+          if (half_it > max.half){
+            
+            stop("maximum halving iterations reached without convergence")
+          }
+          
+        } 
+        ## Computing gradient & Hessian for the next value
+        
+        ftheta<-grad(thetanew,...)
+        H<-hess(thetanew,...)
+        
+        ## Check if the Hessian is positive definite
+        
+        H<-is.posdef(H)
+        
+        iter<-iter+1
+        intvalue<-value
+        theta<-thetanew
+        
+        if (iter > maxit){
+          stop("maximum iterations reached without convergence")
         }
-        
-      } 
-      ## Computing gradient & Hessian for the next value
-      
-      ftheta<-grad(thetanew,...)
-      H<-hess(thetanew,...)
-      
-      ## Check if the Hessian is positive definite
-      
-      result<-tryCatch(chol(H),error=function(e) e) 
-      bool<-inherits(result,"matrix") ## Boolean
-      
-      temp<- 1e-6*diag(1,dim)  
-      
-      while(bool==FALSE){
-        
-        H<-H+temp
-        result<-tryCatch(chol(H),error=function(e) e) 
-        bool<-inherits(result,"matrix") ## Boolean
-        temp<-10*temp ## If our perturbation didn't work we multiply the 
-        ## magnitude by 10
-        
       }
       
-      iter<-iter+1
-      intvalue<-value
-      theta<-thetanew
       
-      if (iter > maxit){
-        stop("maximum iterations reached without convergence")
-      }
+      list(f=value,theta=as.vector(thetanew),iter=iter,g=ftheta,Hi=chol2inv(chol(hess(thetanew,...))))
     }
     
     
-    list(f=value,theta=as.vector(thetanew),iter=iter,g=ftheta,Hi=chol2inv(chol(hess(thetanew,...))))
-  }
-
-  
   }  
   else {
     stop('the objective or derivatives are not finite at the initial theta')
   }
 }
-
