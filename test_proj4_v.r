@@ -233,6 +233,7 @@ maxit=100,max.half=20,eps=1e-6){
       }
       
       iter<-iter+1
+      intvalue<-value
       
       if (iter > maxit){
         stop("maximum iterations reached without convergence")

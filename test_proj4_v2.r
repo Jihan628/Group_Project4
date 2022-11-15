@@ -33,6 +33,55 @@
 
 ##-----------------------------------------------------------------------------
 
+## This function is used to check the positive definiteness of the Hessian 
+## in the newt function.
+
+## Defining the is.posdef function.
+
+is.posdef<-function(A){
+  
+  ## Inputs :: A square matrix A 
+  ##---------------------------------------------------------------------------
+  ## Outputs :: The function checks if A is positive definite by trying the 
+  ## Cholesky decomposition. If the decomposition exists then A is positive   
+  ## definite and the function returns A, otherwise we perturb A until it 
+  ## becomes positive definite and return the perturbed version.
+  ##---------------------------------------------------------------------------
+  
+  # Checking if Α is positive definite 
+  
+  result<-tryCatch(chol(A),error=function(e) e) 
+  bool<-inherits(result,"matrix") ## Boolean
+  dim<-dim(A)[1]
+  
+  temp<- 1e-6*norm(A,type = 'F')*diag(1,dim) ## Used for perturbing A 
+  
+  ## If A is not positive definite we perturb it by adding a 
+  ## multiple of the identity, until it becomes positive definite
+  
+  ## We store the initial A because in case we want to perturb A multiple 
+  ## times, we don't want to perturb the already perturbed version but A
+  ## itself.
+  
+  A_init<-A
+  
+  while(bool==FALSE){
+    
+    A<-A_init+temp
+    
+    result<-tryCatch(chol(A),error=function(e) e) 
+    bool<-inherits(result,"matrix") ## Boolean
+    temp<-10*temp ## If our perturbation didn't work we multiply the 
+                  ## magnitude by 10
+    
+  }
+  
+  return(A)
+  
+}
+
+##-----------------------------------------------------------------------------
+
 ## Defining the newt function
 
 newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,
@@ -77,6 +126,7 @@ maxit=100,max.half=20,eps=1e-6){
   intvalue<-func(theta,...) ## Initial value of the objective
 
   value<-intvalue
+  thetanew<-theta 
    
   iter=0             ## Number of iterations
   dim<-length(theta) ## Dimension of theta
@@ -101,25 +151,10 @@ maxit=100,max.half=20,eps=1e-6){
       H[i,] <- (grad1 - ftheta)/eps      ## Second derivatives approximation
     }
     
-    ## Checking if the Hessian is positive definite at the initial value
+    ## Checking if the Hessian is positive definite at the initial value and
+    ## if is not we perturb it until it becomes positive definite.
     
-    result<-tryCatch(chol(H),error=function(e) e) 
-    bool<-inherits(result,"matrix") ## Boolean
-    
-    temp<- 1e-6*diag(1,dim) ## Used if Hessian is not positive definite 
-    
-    ## If the Hessian is not positive definite we perturb it by adding a 
-    ## multiple of the identity, until it becomes pos. definite
-    
-    while(bool==FALSE){
-      
-      H<-H+temp
-      result<-tryCatch(chol(H),error=function(e) e) 
-      bool<-inherits(result,"matrix") ## Boolean
-      temp<-10*temp ## If our perturbation didn't work we multiply the 
-                    ## magnitude by 10
-      
-    }
+    Η<-is.posdef(H)
     
     while (any(abs(ftheta)>(tol*(abs(value)+fscale)))){ ## Gradient components  
                                                         ## sufficiently small
@@ -162,20 +197,7 @@ maxit=100,max.half=20,eps=1e-6){
       
       ## We are checking if the Hessian is positive definite, if not we perturb
       
-      result<-tryCatch(chol(H),error=function(e) e) 
-      bool<-inherits(result,"matrix") ## Boolean
-      
-      temp<- 1e-6*diag(1,dim)  
-      
-      while(bool==FALSE){
-        
-        H<-H+temp
-        result<-tryCatch(chol(H),error=function(e) e) 
-        bool<-inherits(result,"matrix") ## Boolean
-        temp<-10*temp ## If our perturbation didn't work we multiply the 
-        ## magnitude by 10
-      
-      }
+      H<-is.posdef(H)
       
       iter<-iter+1
       intvalue<-value
@@ -195,20 +217,7 @@ maxit=100,max.half=20,eps=1e-6){
     
     H<-hess(theta,...)
     
-    result<-tryCatch(chol(H),error=function(e) e) 
-    bool<-inherits(result,"matrix") ## Boolean
-    
-    temp<- 1e-6*diag(1,dim)  
-    
-    while(bool==FALSE){
-      
-      H<-H+temp
-      result<-tryCatch(chol(H),error=function(e) e) 
-      bool<-inherits(result,"matrix") ## Boolean
-      temp<-10*temp ## If our perturbation didn't work we multiply the 
-      ## magnitude by 10
-      
-    }
+    H<-is.posdef(H)
     
     while (any(abs(ftheta)>(tol*(abs(value)+fscale)))){
       
