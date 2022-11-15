@@ -77,7 +77,7 @@ maxit=100,max.half=20,eps=1e-6){
   intvalue<-func(theta,...) ## Initial value of the objective
 
   value<-intvalue
-  thetanew<-theta 
+   
   iter=0             ## Number of iterations
   dim<-length(theta) ## Dimension of theta
 
@@ -95,7 +95,7 @@ maxit=100,max.half=20,eps=1e-6){
     H<- matrix(0,dim,dim)
     
     for (i in 1:dim) { ## Looping over parameters
-      th1 <- thetanew;
+      th1 <- theta;
       th1[i] <- th1[i] + eps             ## Increase th0[i] by eps 
       grad1 <- grad(th1,...)             
       H[i,] <- (grad1 - ftheta)/eps      ## Second derivatives approximation
@@ -126,7 +126,7 @@ maxit=100,max.half=20,eps=1e-6){
       
       ## Updating with x_i+1 = x_i + inv_hess*grad
 
-      thetanew<-thetanew-chol2inv(chol(H))%*%ftheta ## Obtaining the next value
+      thetanew<-theta-chol2inv(chol(H))%*%ftheta ## Obtaining the next value
       value<-func(thetanew,...)
       
       ## Check if we are actually improving, otherwise half the step 
@@ -135,7 +135,7 @@ maxit=100,max.half=20,eps=1e-6){
       
       while(intvalue<value){
         
-        thetanew<-thetanew-(1/2)*chol2inv(chol(H))%*%ftheta ## Half the step
+        thetanew<-theta-(1/2)^(half_it+1)*chol2inv(chol(H))%*%ftheta ## Half the step
         value<-func(thetanew,...)
         half_it<-half_it+1
         
@@ -179,6 +179,7 @@ maxit=100,max.half=20,eps=1e-6){
       
       iter<-iter+1
       intvalue<-value
+      theta<-thetanew
       
       if (iter > maxit){
         stop("maximum iterations is reached without convergence")
@@ -192,7 +193,7 @@ maxit=100,max.half=20,eps=1e-6){
     
   } else { ## If Hessian is given, proceed as before without finite differences
     
-    H<-hess(thetanew,...)
+    H<-hess(theta,...)
     
     result<-tryCatch(chol(H),error=function(e) e) 
     bool<-inherits(result,"matrix") ## Boolean
@@ -211,12 +212,12 @@ maxit=100,max.half=20,eps=1e-6){
     
     while (any(abs(ftheta)>(tol*(abs(value)+fscale)))){
       
-      thetanew<-thetanew-chol2inv(chol(hess(thetanew,...)))%*%ftheta
+      thetanew<-theta-chol2inv(chol(H))%*%ftheta
       value<-func(thetanew,...)
       half_it <- 0
       while(intvalue<value){
         
-        thetanew<-thetanew-(1/2)*chol2inv(chol(H))%*%ftheta ## Half the step
+        thetanew<-theta-(1/2)^(half_it+1)*chol2inv(chol(H))%*%ftheta ## Half the step
         value<-func(thetanew,...)
         half_it<-half_it+1
         
@@ -250,6 +251,7 @@ maxit=100,max.half=20,eps=1e-6){
       
       iter<-iter+1
       intvalue<-value
+      theta<-thetanew
       
       if (iter > maxit){
         stop("maximum iterations reached without convergence")
