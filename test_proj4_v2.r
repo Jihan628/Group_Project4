@@ -133,7 +133,7 @@ maxit=100,max.half=20,eps=1e-6){
       
       half_it <- 0 ## Counter for halvings
       
-      while(intvalue<value){
+      while(intvalue<value|is.finite(value)==FALSE){
         
         thetanew<-theta-(1/2)^(half_it+1)*chol2inv(chol(H))%*%ftheta ## Half the step
         value<-func(thetanew,...)
@@ -215,7 +215,7 @@ maxit=100,max.half=20,eps=1e-6){
       thetanew<-theta-chol2inv(chol(H))%*%ftheta
       value<-func(thetanew,...)
       half_it <- 0
-      while(intvalue<value){
+      while(intvalue<value|is.finite(value)==FALSE){
         
         thetanew<-theta-(1/2)^(half_it+1)*chol2inv(chol(H))%*%ftheta ## Half the step
         value<-func(thetanew,...)
