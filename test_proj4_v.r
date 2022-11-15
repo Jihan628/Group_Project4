@@ -28,8 +28,8 @@
 ## for the quadratic::
 ## d/dt(f(xk) + f'(xk)t + (1/2)f''(xk)t^2) = 0 -> t_min = -(f''(xk))^(-1)f'(xk)
 ## so, the recursive formula for our method is given by::
-## xk+1 = xk - (f''(xk))^(-1)f'(xk), where f'' is the Hessian matrix, and f' is
-## the gradient of f.
+## xk+1 = xk - (f''(xk))^(-1)f'(xk), in higher dimensions f'' is the Hessian
+## matrix, and f' is the gradient of f.
 
 ##-----------------------------------------------------------------------------
 
@@ -65,7 +65,7 @@ maxit=100,max.half=20,eps=1e-6){
 ## user, we compute it by using the method of finite differences, otherwise we
 ## use the input, in any case the next step is to check for positive
 ## definiteness using the Cholesky decomposition, if our Hessian is not 
-## positive definite we purturb it by adding l*I, where l is a small real value
+## positive definite we perturb it by adding l*I, where l is a small real value
 ## and I is the identity matrix, in order to make it positive definite. As soon 
 ## as we have confirmed positive definiteness we know that the method converges.
 
@@ -97,8 +97,28 @@ maxit=100,max.half=20,eps=1e-6){
     for (i in 1:dim) { ## Looping over parameters
       th1 <- thetanew;
       th1[i] <- th1[i] + eps             ## Increase th0[i] by eps 
-      grad1 <- grad(th1,...)             ## compute resulting nll
+      grad1 <- grad(th1,...)             
       H[i,] <- (grad1 - ftheta)/eps      ## Second derivatives approximation
+    }
+    
+    ## Checking if the Hessian is positive definite at the initial value
+    
+    result<-tryCatch(chol(H),error=function(e) e) 
+    bool<-inherits(result,"matrix") ## Boolean
+    
+    temp<- 1e-6*diag(1,dim) ## Used if Hessian is not positive definite 
+    
+    ## If the Hessian is not positive definite we perturb it by adding a 
+    ## multiple of the identity, until it becomes pos. definite
+    
+    while(bool==FALSE){
+      
+      H<-H+temp
+      result<-tryCatch(chol(H),error=function(e) e) 
+      bool<-inherits(result,"matrix") ## Boolean
+      temp<-10*temp ## If our perturbation didn't work we multiply the 
+                    ## magnitude by 10
+      
     }
     
     while (any(abs(ftheta)>(tol*(abs(value)+fscale)))){ ## Gradient components  
