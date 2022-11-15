@@ -129,23 +129,56 @@ maxit=100,max.half=20,eps=1e-6){
       thetanew<-thetanew-chol2inv(chol(H))%*%ftheta ## Obtaining the next value
       value<-func(thetanew,...)
       
-      #Need to build a hessian matrix
+      ## Check if we are actually improving, otherwise half the step 
+      
+      half_it <- 0 ## Counter for halvings
+      
+      while(intvalue<value){
+        
+        thetanew<-thetanew-(1/2)*chol2inv(chol(H))%*%ftheta ## Half the step
+        value<-func(thetanew,...)
+        half_it<-half_it+1
+        
+        if (half_it > max.half){
+          
+          stop("maximum halving iterations reached without convergence")
+        }
+        
+      } 
+      
+      ## We have obtained the next value
+      
+      ## We compute the Hessian for the next value
       
       ftheta<- grad(thetanew,...) 
       H<- matrix(0,dim,dim)
       
-      for (i in 1:dim) { ## loop over parameters
+      for (i in 1:dim) { ## Looping over parameters
         th1 <- thetanew;
-        th1[i] <- th1[i] + eps ## increase th0[i] by eps 
-        grad1 <- grad(th1,...) ## compute resulting nll
-        H[i,] <- (grad1 - ftheta)/eps ## approximate second derivs
+        th1[i] <- th1[i] + eps        ## Increase th0[i] by eps 
+        grad1 <- grad(th1,...) 
+        H[i,] <- (grad1 - ftheta)/eps ## Approximate second derivatives
+      }
+      
+      ## We are checking if the Hessian is positive definite, if not we perturb
+      
+      result<-tryCatch(chol(H),error=function(e) e) 
+      bool<-inherits(result,"matrix") ## Boolean
+      
+      temp<- 1e-6*diag(1,dim)  
+      
+      while(bool==FALSE){
+        
+        H<-H+temp
+        result<-tryCatch(chol(H),error=function(e) e) 
+        bool<-inherits(result,"matrix") ## Boolean
+        temp<-10*temp ## If our perturbation didn't work we multiply the 
+        ## magnitude by 10
+      
       }
       
       iter<-iter+1
-      
-      
-      
-      
+
       
       if (iter > maxit){
         stop("maximum iterations is reached without convergence")
@@ -157,18 +190,52 @@ maxit=100,max.half=20,eps=1e-6){
     
     list(f=value,theta=as.vector(thetanew),iter=iter,g=ftheta,Hi=chol2inv(chol(H)))
     
-  } else { # With hess matrix
+  } else { ## If Hessian is given, proceed as before without finite differences
     
     while (any(abs(ftheta)>(tol*(abs(value)+fscale)))){
       
       
       thetanew<-thetanew-chol2inv(chol(hess(thetanew,...)))%*%ftheta
       value<-func(thetanew,...)
+      
+      while(intvalue<value){
+        
+        thetanew<-thetanew-(1/2)*chol2inv(chol(H))%*%ftheta ## Half the step
+        value<-func(thetanew,...)
+        half_it<-half_it+1
+        
+        if (half_it > max.half){
+          
+          stop("maximum halving iterations reached without convergence")
+        }
+        
+      } 
+      ## Computing gradient & Hessian for the next value
+      
       ftheta<-grad(thetanew,...)
+      hess<-hess(thetanew,...)
+      
+      ## Check if the Hessian is positive definite
+      
+      result<-tryCatch(chol(hess),error=function(e) e) 
+      bool<-inherits(result,"matrix") ## Boolean
+      
+      temp<- 1e-6*diag(1,dim)  
+      
+      while(bool==FALSE){
+        
+        H<-H+temp
+        result<-tryCatch(chol(H),error=function(e) e) 
+        bool<-inherits(result,"matrix") ## Boolean
+        temp<-10*temp ## If our perturbation didn't work we multiply the 
+        ## magnitude by 10
+        
+      }
+      
       iter<-iter+1
       
       if (iter > maxit){
-        stop("maximum iterations is reached without convergence")
+        stop("maximum iterations reached without convergence")
       }
     }
     
