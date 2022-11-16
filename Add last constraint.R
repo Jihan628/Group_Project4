@@ -156,12 +156,12 @@ newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,
       
       Hnew<-is.posdef(H)
       
-      while (any(abs(ftheta)>(tol*(abs(value)+fscale)))){ ## Gradient components  
+      while (any(abs(ftheta)>=(tol*(abs(value)+fscale)))){ ## Gradient components  
         ## sufficiently small
         H<-Hnew
         ## Updating with x_i+1 = x_i + inv_hess*grad
         
-        thetanew<-theta-chol2inv(chol(H))%*%ftheta ## Obtaining the next value
+        thetanew<-theta-backsolve(chol(H),forwardsolve(t(chol(H)),ftheta)) ## Obtaining the next value
         value<-func(thetanew,...)
         
         ## Check if we are actually improving, otherwise half the step 
@@ -170,7 +170,7 @@ newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,
         
         while(intvalue<value|is.finite(value)==FALSE){
           
-          thetanew<-theta-(1/2)^(half_it+1)*chol2inv(chol(H))%*%ftheta ## Half the step
+          thetanew<-theta-(1/2)^(half_it+1)*backsolve(chol(H),forwardsolve(t(chol(H)),ftheta)) ## Half the step
           value<-func(thetanew,...)
           half_it<-half_it+1
           
@@ -217,11 +217,11 @@ newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,
       if (Bool_H == FALSE){
         warning('Hessian is not
         positive definite at convergence.')
-        list(f=value,theta=as.vector(thetanew),iter=iter,g=ftheta)
+        list(f=value,theta=thetanew,iter=iter,g=ftheta)
+        
       } else {
       
-      
-      list(f=value,theta=as.vector(thetanew),iter=iter,g=ftheta,Hi=chol2inv(chol(Hnew)))
+      list(f=value,theta=thetanew,iter=iter,g=ftheta,Hi=chol2inv(chol(Hnew)))
       }
       
     } else { ## If Hessian is given, proceed as before without finite differences
@@ -230,15 +230,15 @@ newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,
       
       Hnew<-is.posdef(H)
       
-      while (any(abs(ftheta)>(tol*(abs(value)+fscale)))){
+      while (any(abs(ftheta)>=(tol*(abs(value)+fscale)))){
         
         H<-Hnew
-        thetanew<-theta-chol2inv(chol(H))%*%ftheta
+        thetanew<-theta-backsolve(chol(H),forwardsolve(t(chol(H)),ftheta))
         value<-func(thetanew,...)
         half_it <- 0
         while(intvalue<value|is.finite(value)==FALSE){
           
-          thetanew<-theta-(1/2)^(half_it+1)*chol2inv(chol(H))%*%ftheta ## Half the step
+          thetanew<-theta-(1/2)^(half_it+1)*backsolve(chol(H),forwardsolve(t(chol(H)),ftheta)) ## Half the step
           value<-func(thetanew,...)
           half_it<-half_it+1
           
@@ -272,10 +272,10 @@ newt<-function(theta,func,grad,hess=NULL,...,tol=1e-8,fscale=1,
         warning('Hessian is not
         positive definite at convergence')
         
-        list(f=value,theta=as.vector(thetanew),iter=iter,g=ftheta)
+        list(f=value,theta=thetanew,iter=iter,g=ftheta)
       } else {
       
-      list(f=value,theta=as.vector(thetanew),iter=iter,g=ftheta,Hi=chol2inv(chol(Hnew)))
+      list(f=value,theta=thetanew,iter=iter,g=ftheta,Hi=chol2inv(chol(Hnew)))
       }
     }
     
@@ -348,5 +348,5 @@ hll <- function(theta,t,y) {
 
 t80 <- 1:13 ## years since 1980
 y <- c(12,14,33,50,67,74,123,141,165,204,253,246,240)
-newt(theta=c(-20,1),func=rll,grad=gll,hess=NULL,t=t80,y=y)
-newt(theta=c(5,5),rb,gb)
+newt(theta=c(1,1),func=rll,grad=gll,hess=NULL,t=t80,y=y)
+newt(theta=c(1,1),rb,gb,hb)
