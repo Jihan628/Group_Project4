@@ -54,9 +54,9 @@ is.posdef<-function(A){
   bool<-inherits(result,"matrix") ## Boolean
   dim<-dim(A)[1]
   
-  if (is.null(dim)==FALSE){
+  
   temp<- 1e-6*norm(A,type = 'F')*diag(1,dim) ## Used for perturbing A 
-  }
+  
   ## If A is not positive definite we perturb it by adding a 
   ## multiple of the identity, until it becomes positive definite
   
